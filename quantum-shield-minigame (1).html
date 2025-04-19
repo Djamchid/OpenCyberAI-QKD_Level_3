@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuantumShield: Détection d'Intrus Quantique</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --secondary: #9b59b6;
+            --accent: #2ecc71;
+            --danger: #e74c3c;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #121212;
+            color: var(--light);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .game-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        header {
+            background-color: var(--dark);
+            color: var(--light);
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+        }
+
+        .level-indicator {
+            font-size: 1rem;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .game-board {
+            background: radial-gradient(circle, rgba(25, 25, 40, 0.9) 0%, rgba(15, 15, 30, 0.95) 100%);
+            border-radius: 50%;
+            position: relative;
+            width: 80vmin;
+            height: 80vmin;
+            max-width: 600px;
+            max-height: 600px;
+            border: 3px solid var(--primary);
+            box-shadow: 
+                0 0 15px rgba(52, 152, 219, 0.5),
+                inset 0 0 15px rgba(52, 152, 219, 0.3);
+            overflow: hidden;
+        }
+
+        .radar-sweep {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 50%;
+            height: 2px;
+            background-color: rgba(46, 204, 113, 0.7);
+            transform-origin: left center;
+            box-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent);
+            animation: sweep 5s linear infinite;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        @keyframes sweep {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .radar-rings {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            border: 1px dashed rgba(52, 152, 219, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .photon {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            transition: all 0.1s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1rem;
+            font-weight: bold;
+            z-index: 3;
+        }
+
+        .photon::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+            z-index: -1;
+        }
+
+        .photon.normal {
+            background-color: rgba(52, 152, 219, 0.7);
+        }
+
+        .photon.normal::before {
+            background-color: rgba(52, 152, 219, 0.3);
+        }
+
+        .photon.cloned {
+            background-color: rgba(231, 76, 60, 0.7);
+        }
+
+        .photon.cloned::before {
+            background-color: rgba(231, 76, 60, 0.3);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.5); opacity: 0.3; }
+            100% { transform: scale(1); opacity: 0.7; }
+        }
+
+        .hud {
+            position: absolute;
+            bottom: 1rem;
+            left: 1rem;
+            right: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 4;
+        }
+
+        .score-container, .time-container, .life-container {
+            background-color: rgba(25, 25, 40, 0.8);
+            padding: 0.7rem;
+            border-radius: 5px;
+            border: 1px solid var(--primary);
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+        }
+
+        .score-value, .time-value {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: var(--accent);
+        }
+
+        .life-container {
+            display: flex;
+            gap: 5px;
+        }
+
+        .life {
+            width: 20px;
+            height: 20px;
+            background-color: var(--danger);
+            clip-path: path('M10,1.8c-4.5,0-8.2,3.7-8.2,8.2s8.2,10,8.2,10s8.2-5.5,8.2-10S14.5,1.8,10,1.8z');
+        }
+
+        .message-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        .message-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .message-title {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+            text-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+        }
+
+        .message-content {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            max-width: 80%;
+            line-height: 1.5;
+        }
+
+        .button {
+            padding: 0.8rem 1.5rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .button:hover {
+            background-color: #2980b9;
+            transform: scale(1.05);
+        }
+
+        .button.continue {
+            background-color: var(--accent);
+        }
+
+        .button.continue:hover {
+            background-color: #27ae60;
+        }
+
+        .button.restart {
+            background-color: var(--danger);
+        }
+
+        .button.restart:hover {
+            background-color: #c0392b;
+        }
+
+        .controls {
+            margin-top: 1rem;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background-color: rgba(25, 25, 40, 0.8);
+            padding: 0.7rem;
+            border-radius: 5px;
+            border: 1px solid var(--secondary);
+            box-shadow: 0 0 10px rgba(155, 89, 182, 0.3);
+            max-width: 300px;
+            z-index: 5;
+            transform: translateX(320px);
+            transition: transform 0.3s ease;
+        }
+
+        .info-panel.visible {
+            transform: translateX(0);
+        }
+
+        .info-title {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--secondary);
+        }
+
+        .info-content {
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .info-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 30px;
+            height: 30px;
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 4;
+            transition: all 0.3s ease;
+        }
+
+        .info-button:hover {
+            background-color: #8e44ad;
+            transform: scale(1.1);
+        }
+
+        .qbit-rain {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .qbit {
+            position: absolute;
+            width: 2px;
+            height: 10px;
+            background-color: rgba(52, 152, 219, 0.5);
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            to { transform: translateY(calc(100vh + 10px)); }
+        }
+
+        .help-tooltip {
+            position: absolute;
+            background-color: rgba(25, 25, 40, 0.9);
+            padding: 0.5rem;
+            border-radius: 5px;
+            border: 1px solid var(--primary);
+            font-size: 0.8rem;
+            max-width: 200px;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .help-tooltip.visible {
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .game-board {
+                width: 90vmin;
+                height: 90vmin;
+            }
+
+            .hud {
+                flex-direction: column;
+                gap: 0.5rem;
+                align-items: flex-start;
+            }
+
+            .info-panel {
+                right: 0.5rem;
+                max-width: 80%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>QuantumShield: La Course à la Sécurité Quantique</h1>
+        <div class="level-indicator">NIVEAU 3: Détecteur d'Intrus Quantique</div>
+    </header>
+
+    <div class="game-container">
+        <div class="game-board">
+            <div class="radar-rings">
+                <div class="ring" style="width: 20%; height: 20%;"></div>
+                <div class="ring" style="width: 40%; height: 40%;"></div>
+                <div class="ring" style="width: 60%; height: 60%;"></div>
+                <div class="ring" style="width: 80%; height: 80%;"></div>
+                <div class="ring" style="width: 100%; height: 100%;"></div>
+            </div>
+            <div class="radar-sweep"></div>
+            <div class="qbit-rain"></div>
+            <!-- Photons will be added here by JavaScript -->
+        </div>
+
+        <div class="hud">
+            <div class="score-container">
+                Score: <span class="score-value">0</span>
+            </div>
+            <div class="time-container">
+                Temps: <span class="time-value">60</span>s
+            </div>
+            <div class="life-container">
+                <div class="life"></div>
+                <div class="life"></div>
+                <div class="life"></div>
+            </div>
+        </div>
+
+        <button class="info-button">i</button>
+        <div class="info-panel">
+            <h3 class="info-title">Mission: Détection d'Intrus</h3>
+            <p class="info-content">
+                Dr. QuBit a détecté une attaque de Qhaos sur notre réseau quantique! Votre mission est de repérer les photons clonés (rouges) qui tentent de s'infiltrer dans notre système QKD.
+                <br><br>
+                Cliquez sur les photons clonés pour les neutraliser avant qu'ils ne corrompent notre clé quantique. Attention, si vous cliquez sur un photon légitime (bleu), notre QBER augmentera!
+            </p>
+        </div>
+
+        <div class="message-overlay" id="start-screen">
+            <h2 class="message-title">Niveau 3: Détecteur d'Intrus</h2>
+            <p class="message-content">
+                L'alerte est déclenchée! Qhaos a lancé une attaque sophistiquée par "clonage quantique" sur notre réseau Paris-Singapour. 
+                <br><br>
+                Utilisez le détecteur quantique pour repérer et neutraliser les photons clonés avant qu'ils ne compromettent notre clé.
+                <br><br>
+                <b>Objectif:</b> Atteindre 500 points pour sécuriser le réseau.
+            </p>
+            <button class="button continue" id="start-button">Commencer la mission</button>
+        </div>
+
+        <div class="message-overlay" id="win-screen">
+            <h2 class="message-title">Mission réussie!</h2>
+            <p class="message-content">
+                Félicitations, agent! Vous avez neutralisé l'attaque de Qhaos. 
+                <br><br>
+                Notre réseau quantique est sécurisé et la clé QKD a été régénérée avec succès.
+                <br><br>
+                <i>"Clé compromise abandonnée -- Qhaos n'a récupéré que 0 bit!"</i>
+            </p>
+            <div class="controls">
+                <button class="button restart" id="restart-button">Rejouer</button>
+                <button class="button continue" id="next-level-button">Niveau suivant</button>
+            </div>
+        </div>
+
+        <div class="message-overlay" id="lose-screen">
+            <h2 class="message-title">Réseau compromis!</h2>
+            <p class="message-content">
+                Qhaos a réussi à infiltrer trop de photons clonés dans notre système.
+                <br><br>
+                La clé quantique a été compromise et les données sont vulnérables.
+                <br><br>
+                Dr. QuBit: "Nous devons réinitialiser le réseau et retenter notre chance!"
+            </p>
+            <button class="button restart" id="retry-button">Réessayer</button>
+        </div>
+
+        <div class="help-tooltip" id="tooltip"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Game elements
+            const gameBoard = document.querySelector('.game-board');
+            const scoreValue = document.querySelector('.score-value');
+            const timeValue = document.querySelector('.time-value');
+            const lives = document.querySelectorAll('.life');
+            const startScreen = document.getElementById('start-screen');
+            const winScreen = document.getElementById('win-screen');
+            const loseScreen = document.getElementById('lose-screen');
+            const startButton = document.getElementById('start-button');
+            const restartButton = document.getElementById('restart-button');
+            const retryButton = document.getElementById('retry-button');
+            const nextLevelButton = document.getElementById('next-level-button');
+            const infoButton = document.querySelector('.info-button');
+            const infoPanel = document.querySelector('.info-panel');
+            const qbitRain = document.querySelector('.qbit-rain');
+            const tooltip = document.getElementById('tooltip');
+
+            // Game state
+            let score = 0;
+            let timeLeft = 60;
+            let livesLeft = 3;
+            let gameActive = false;
+            let countdownInterval;
+            let photonInterval;
+            let currentPhotons = [];
+            let gameBoardRect;
+
+            // Initialize qbit rain
+            createQbitRain();
+
+            // Show start screen
+            startScreen.classList.add('visible');
+
+            // Event listeners
+            startButton.addEventListener('click', startGame);
+            restartButton.addEventListener('click', restartGame);
+            retryButton.addEventListener('click', restartGame);
+            nextLevelButton.addEventListener('click', goToNextLevel);
+            infoButton.addEventListener('click', toggleInfoPanel);
+            window.addEventListener('resize', updateGameBoardRect);
+
+            // Functions
+            function updateGameBoardRect() {
+                gameBoardRect = gameBoard.getBoundingClientRect();
+            }
+
+            function createQbitRain() {
+                for (let i = 0; i < 50; i++) {
+                    const qbit = document.createElement('div');
+                    qbit.classList.add('qbit');
+                    
+                    const startPosition = Math.random() * 100;
+                    const duration = Math.random() * 10 + 10;
+                    const delay = Math.random() * 10;
+                    
+                    qbit.style.left = `${startPosition}%`;
+                    qbit.style.animationDuration = `${duration}s`;
+                    qbit.style.animationDelay = `${delay}s`;
+                    qbit.style.opacity = Math.random() * 0.5 + 0.2;
+                    
+                    qbitRain.appendChild(qbit);
+                }
+            }
+
+            function toggleInfoPanel() {
+                infoPanel.classList.toggle('visible');
+            }
+
+            function startGame() {
+                startScreen.classList.remove('visible');
+                resetGameState();
+                gameActive = true;
+                updateGameBoardRect();
+                
+                // Start countdown
+                countdownInterval = setInterval(updateCountdown, 1000);
+                
+                // Start spawning photons
+                photonInterval = setInterval(spawnPhoton, 1000);
+
+                // Create initial photons
+                for (let i = 0; i < 5; i++) {
+                    spawnPhoton();
+                }
+            }
+
+            function resetGameState() {
+                // Reset score and time
+                score = 0;
+                timeLeft = 60;
+                livesLeft = 3;
+                
+                // Update display
+                scoreValue.textContent = score;
+                timeValue.textContent = timeLeft;
+                
+                // Reset lives display
+                lives.forEach(life => {
+                    life.style.opacity = '1';
+                });
+                
+                // Clear intervals if they exist
+                if (countdownInterval) clearInterval(countdownInterval);
+                if (photonInterval) clearInterval(photonInterval);
+                
+                // Remove all photons
+                const photons = document.querySelectorAll('.photon');
+                photons.forEach(photon => photon.remove());
+                currentPhotons = [];
+            }
+
+            function restartGame() {
+                winScreen.classList.remove('visible');
+                loseScreen.classList.remove('visible');
+                startGame();
+            }
+
+            function goToNextLevel() {
+                // In a real game, this would navigate to the next level
+                alert("Cette démonstration ne contient que le niveau 3. Dans le jeu complet, vous passeriez au niveau 4!");
+                restartGame();
+            }
+
+            function updateCountdown() {
+                timeLeft--;
+                timeValue.textContent = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    endGame(score >= 500);
+                }
+            }
+
+            function spawnPhoton() {
+                if (!gameActive) return;
+                
+                // Calculate random position within the game board
+                const centerX = gameBoardRect.width / 2;
+                const centerY = gameBoardRect.height / 2;
+                const radius = Math.random() * gameBoardRect.width * 0.45;
+                const angle = Math.random() * Math.PI * 2;
+                
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+                
+                // Determine if this photon is cloned (enemy) or normal
+                const isCloned = Math.random() < 0.3;
+                
+                // Create photon element
+                const photon = document.createElement('div');
+                photon.classList.add('photon');
+                photon.classList.add(isCloned ? 'cloned' : 'normal');
+                photon.dataset.type = isCloned ? 'cloned' : 'normal';
+                photon.style.left = `${x}px`;
+                photon.style.top = `${y}px`;
+                
+                // Add event listener
+                photon.addEventListener('click', handlePhotonClick);
+                photon.addEventListener('mouseover', showTooltip);
+                photon.addEventListener('mouseout', hideTooltip);
+                
+                // Add to game board
+                gameBoard.appendChild(photon);
+                
+                // Add to tracking array
+                currentPhotons.push({
+                    element: photon,
+                    isCloned: isCloned,
+                    createdAt: Date.now(),
+                    lifespan: Math.random() * 3000 + 2000 // 2-5 seconds lifespan
+                });
+                
+                // Set timeout to remove this photon automatically
+                setTimeout(() => {
+                    if (gameActive && photon.parentNode) {
+                        // If cloned photon was not clicked, lose a life
+                        if (isCloned) {
+                            loseLife();
+                        }
+                        removePhoton(photon);
+                    }
+                }, Math.random() * 3000 + 2000);
+            }
+
+            function handlePhotonClick(e) {
+                if (!gameActive) return;
+                
+                const photon = e.target;
+                const isCloned = photon.dataset.type === 'cloned';
+                
+                if (isCloned) {
+                    // Correct click - cloned photon
+                    score += 50;
+                    scoreValue.textContent = score;
+                    
+                    // Create explosion effect
+                    createExplosion(photon, 'var(--danger)');
+                    
+                    // Check win condition
+                    if (score >= 500) {
+                        endGame(true);
+                    }
+                } else {
+                    // Wrong click - normal photon
+                    loseLife();
+                    createExplosion(photon, 'var(--primary)');
+                }
+                
+                // Remove the clicked photon
+                removePhoton(photon);
+            }
+
+            function showTooltip(e) {
+                const photon = e.target;
+                const rect = photon.getBoundingClientRect();
+                
+                tooltip.textContent = photon.dataset.type === 'cloned' ? 
+                    "Photon cloné - DANGER!" : 
+                    "Photon normal - Ne pas toucher";
+                    
+                tooltip.style.left = `${rect.left}px`;
+                tooltip.style.top = `${rect.top - 30}px`;
+                tooltip.classList.add('visible');
+            }
+
+            function hideTooltip() {
+                tooltip.classList.remove('visible');
+            }
+
+            function removePhoton(photon) {
+                // Remove from tracking array
+                currentPhotons = currentPhotons.filter(p => p.element !== photon);
+                
+                // Remove from DOM
+                if (photon.parentNode) {
+                    photon.parentNode.removeChild(photon);
+                }
+            }
+
+            function loseLife() {
+                if (livesLeft > 0) {
+                    livesLeft--;
+                    lives[livesLeft].style.opacity = '0.3';
+                    
+                    if (livesLeft === 0) {
+                        endGame(false);
+                    }
+                }
+            }
+
+            function createExplosion(photon, color) {
+                const rect = photon.getBoundingClientRect();
+                const boardRect = gameBoard.getBoundingClientRect();
+                
+                const x = rect.left - boardRect.left + rect.width / 2;
+                const y = rect.top - boardRect.top + rect.height / 2;
+                
+                for (let i = 0; i < 20; i++) {
+                    const particle = document.createElement('div');
+                    particle.style.position = 'absolute';
+                    particle.style.width = '3px';
+                    particle.style.height = '3px';
+                    particle.style.backgroundColor = color;
+                    particle.style.borderRadius = '50%';
+                    particle.style.left = `${x}px`;
+                    particle.style.top = `${y}px`;
+                    particle.style.zIndex = '3';
+                    
+                    const angle = Math.random() * Math.PI * 2;
+                    const velocity = Math.random() * 5 + 3;
+                    const lifetime = Math.random() * 500 + 500;
+                    
+                    const animation = particle.animate([
+                        { 
+                            transform: 'translate(-50%, -50%) scale(1)',
+                            opacity: 1
+                        },
+                        {
+                            transform: `translate(
+                                calc(-50% + ${Math.cos(angle) * velocity * lifetime / 100}px), 
+                                calc(-50% + ${Math.sin(angle) * velocity * lifetime / 100}px)
+                            ) scale(0)`,
+                            opacity: 0
+                        }
+                    ], {
+                        duration: lifetime,
+                        easing: 'cubic-bezier(0.1, 0.8, 0.2, 1)'
+                    });
+                    
+                    gameBoard.appendChild(particle);
+                    
+                    animation.onfinish = () => {
+                        if (particle.parentNode) {
+                            particle.parentNode.removeChild(particle);
+                        }
+                    };
+                }
+            }
+
+            function endGame(isWin) {
+                gameActive = false;
+                clearInterval(countdownInterval);
+                clearInterval(photonInterval);
+                
+                if (isWin) {
+                    winScreen.classList.add('visible');
+                } else {
+                    loseScreen.classList.add('visible');
+                }
+            }
+
+            // Helper function to detect if device supports touch
+            function isTouchDevice() {
+                return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            }
+            
+            // If touch device, disable tooltips
+            if (isTouchDevice()) {
+                const photons = document.querySelectorAll('.photon');
+                photons.forEach(photon => {
+                    photon.removeEventListener('mouseover', showTooltip);
+                    photon.removeEventListener('mouseout', hideTooltip);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
